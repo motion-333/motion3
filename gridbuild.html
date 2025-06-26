@@ -59,11 +59,15 @@
             el.dataset.cols=rw*scale;el.dataset.rows=rh*scale;
           });
           el.addEventListener('dragstart',e=>{
-            e.dataTransfer.setData('text/plain', el.dataset.src);
-            e.dataTransfer.setData('src',el.dataset.src);
-            e.dataTransfer.setData('cols',el.dataset.cols);
-            e.dataTransfer.setData('rows',el.dataset.rows);
-            e.dataTransfer.setData('type',el.dataset.type);
+            const payload=JSON.stringify({
+              src:el.dataset.src,
+              type:el.dataset.type,
+              cols:el.dataset.cols,
+              rows:el.dataset.rows
+            });
+            // provide both custom and plain text types for compatibility
+            e.dataTransfer.setData('application/json',payload);
+            e.dataTransfer.setData('text/plain',payload);
           });
           fileList.appendChild(el);
         });loadLayout(folder);
@@ -80,17 +84,17 @@
     gridContainer.addEventListener('dragover',e=>e.preventDefault());
     gridContainer.addEventListener('drop', e => {
       e.preventDefault();
-      let src = e.dataTransfer.getData('src');
-      let type = e.dataTransfer.getData('type');
-      if (!type) {
-        type = /\.(mp4|webm)$/i.test(src) ? 'video' : 'image';
-      }
-      let colsSpan = parseInt(e.dataTransfer.getData('cols'), 10);
-      let rowsSpan = parseInt(e.dataTransfer.getData('rows'), 10);
-      if (!(colsSpan > 0 && rowsSpan > 0)) {
-        const thumb = document.querySelector(`.draggable-item[src="${src}"]`);
-        colsSpan = thumb ? parseInt(thumb.dataset.cols, 10) : minCells;
-        rowsSpan = thumb ? parseInt(thumb.dataset.rows, 10) : minCells;
+      let data = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain');
+      let info = {};
+      try{ info = JSON.parse(data); }catch{}
+      let src = info.src || e.dataTransfer.getData('text/plain');
+      let type = info.type || (/\.(mp4|webm)$/i.test(src) ? 'video' : 'image');
+      let colsSpan = parseInt(info.cols,10);
+      let rowsSpan = parseInt(info.rows,10);
+      if(!(colsSpan>0&&rowsSpan>0)){
+        const thumb=document.querySelector(`.draggable-item[src="${src}"]`);
+        colsSpan=thumb?parseInt(thumb.dataset.cols,10):minCells;
+        rowsSpan=thumb?parseInt(thumb.dataset.rows,10):minCells;
       }
       const { cw, ch } = getSizes();
       const step = ch + gap;

@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agora Grid Layout</title>
   <style>
-    body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; }
+    body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
     #message { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; }
-    #gridContainer { position:relative; flex:1; background:#fff; }
+    #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); }
+    #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:#f0f0f0; border:1px solid #ddd; aspect-ratio:1/1; }
     .placed { position:absolute; overflow:hidden; }
@@ -16,31 +17,38 @@
 </head>
 <body>
   <div id="message"></div>
-  <div id="gridContainer"><div id="grid"></div></div>
+  <div id="viewport">
+    <div id="gridContainer"><div id="grid"></div></div>
+  </div>
   <script>
+  (async function(){
     const cols=80, rows=45, gap=1;
     const gridContainer=document.getElementById('gridContainer');
     const grid=document.getElementById('grid');
     const message=document.getElementById('message');
-    // build grid
-    for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}    
-    // helpers
-    function gcd(a,b){return b?gcd(b,a%b):a;}
+    for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}
     function getSizes(){
       const r=gridContainer.getBoundingClientRect();
       const totalGap=(rows-1)*gap;
       const cellSize=(r.height-totalGap)/rows;
       return { size:cellSize, step:cellSize+gap };
     }
-    // parse folder
-    const p=new URLSearchParams(location.search);
-    const folder=p.get('folder');
-    if(!folder){message.textContent='Error: ?folder=name';throw'';}
+
+    let folder=new URLSearchParams(location.search).get('folder');
+    if(!folder){
+      try{
+        const fs=await (await fetch('/static/pf/folders.json')).json();
+        folder=fs[0];
+        if(folder) history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
+      }catch(e){
+        message.textContent='No folders available';
+        return;
+      }
+    }
     message.textContent=`Folder: ${folder}`;
-    // load layout
     const key=`layout_${folder}`;
     const raw=localStorage.getItem(key);
-    if(!raw){message.textContent=`No layout for '${folder}'`;throw'';}
+    if(!raw){message.textContent=`No layout for '${folder}'`;return;}
     let items=JSON.parse(raw);
     const {size,step}=getSizes();
 
@@ -76,6 +84,7 @@
         render();
       }
     });
+  })();
   </script>
 </body>
 </html>
