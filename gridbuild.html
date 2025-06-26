@@ -158,6 +158,13 @@
         media=document.createElement('video');
         media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;
         media.src=src;
+        wrap.addEventListener('dblclick',()=>{
+          wrap.dataset.cols = wrap.dataset.cols * 2;
+          wrap.dataset.rows = wrap.dataset.rows * 2;
+          wrap.style.width = `${wrap.dataset.cols*size + (wrap.dataset.cols-1)*gap}px`;
+          wrap.style.height = `${wrap.dataset.rows*size + (wrap.dataset.rows-1)*gap}px`;
+          if(doSave) saveLayout(folderSelect.value);
+        });
       }else if(type==='image'){
         media=document.createElement('img');
         media.src=src;

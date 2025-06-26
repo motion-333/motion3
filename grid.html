@@ -25,6 +25,7 @@
       padding:0;
       white-space:pre-wrap;
       box-sizing:border-box;
+      outline:none;
     }
   </style>
 </head>
@@ -148,6 +149,16 @@
         render();
       }
     });
+
+    let lastLayout = raw;
+    setInterval(()=>{
+      const cur = localStorage.getItem(key);
+      if(cur !== lastLayout){
+        lastLayout = cur;
+        items = cur ? JSON.parse(cur) : [];
+        render();
+      }
+    },1000);
   })();
   </script>
 </body>
