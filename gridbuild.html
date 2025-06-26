@@ -15,7 +15,20 @@
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
     .placed { position:absolute; overflow:hidden; cursor: move; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
-    .text-item { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:'Outfit', sans-serif; }
+    .text-item {
+      width:100%;
+      height:100%;
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-start;
+      font-family:'Outfit', sans-serif;
+      background:#fff;
+      margin:0;
+      padding:0;
+      line-height:1;
+      white-space:pre-wrap;
+      outline:none;
+    }
     #addTextBtn { width:100%; margin-top:10px; }
   </style>
 </head>
@@ -39,7 +52,7 @@
     function gcd(a,b){return b?gcd(b,a%b):a;}
     function getSizes(){
       const r=gridContainer.getBoundingClientRect();
-      const size=(r.height-(rows-1)*gap)/rows;
+      const size=(r.width-(cols-1)*gap)/cols;
       return { size, step:size+gap };
     }
 
@@ -149,21 +162,34 @@
       }else if(type==='image'){
         media=document.createElement('img');
         media.src=src;
+        wrap.addEventListener('dblclick',()=>{
+          wrap.dataset.cols = wrap.dataset.cols * 2;
+          wrap.dataset.rows = wrap.dataset.rows * 2;
+          wrap.style.width = `${wrap.dataset.cols*size + (wrap.dataset.cols-1)*gap}px`;
+          wrap.style.height = `${wrap.dataset.rows*size + (wrap.dataset.rows-1)*gap}px`;
+          if(doSave) saveLayout(folderSelect.value);
+        });
       }else{
         media=document.createElement('div');
         media.className='text-item';
         media.contentEditable='true';
         media.textContent=src||'';
+        const updateScale=scale=>{
+          const {size:sz}=getSizes();
+          media.style.fontSize=`${sz*scale}px`;
+          media.style.lineHeight=`${sz*scale}px`;
+        };
+        wrap.dataset.fontScale='1';
+        updateScale(1);
         media.addEventListener('input',()=>{wrap.dataset.text=media.textContent; if(doSave) saveLayout(folderSelect.value);});
+        wrap.addEventListener('dblclick',()=>{
+          const scale=parseFloat(wrap.dataset.fontScale)||1;
+          const newScale=scale*2;
+          wrap.dataset.fontScale=newScale;
+          updateScale(newScale);
+        });
       }
       wrap.appendChild(media);
-      wrap.addEventListener('dblclick',()=>{
-        wrap.dataset.cols = wrap.dataset.cols * 2;
-        wrap.dataset.rows = wrap.dataset.rows * 2;
-        wrap.style.width = `${wrap.dataset.cols*size + (wrap.dataset.cols-1)*gap}px`;
-        wrap.style.height = `${wrap.dataset.rows*size + (wrap.dataset.rows-1)*gap}px`;
-        if(doSave) saveLayout(folderSelect.value);
-      });
       wrap.addEventListener('click', (e) => {
         if (e.detail === 3) {
           wrap.dataset.cols = Math.max(1, Math.floor(wrap.dataset.cols / 4));
@@ -214,10 +240,10 @@
     }
 
     addTextBtn.addEventListener('click',()=>{
-      const ans=prompt('Enter text box size as CxR (e.g., 4x2):','4x2');
-      if(!ans) return;
-      const parts=ans.toLowerCase().split('x');
-      const c=parseInt(parts[0],10), r=parseInt(parts[1],10);
+      const c=parseInt(prompt('Cols (cells):','4'),10);
+      if(!c) return;
+      const r=parseInt(prompt('Rows (cells):','2'),10);
+      if(!r) return;
       if(!(c>0 && r>0)) return alert('Invalid size');
       const col=Math.floor(cols/2 - c/2), row=Math.floor(rows/2 - r/2);
       placeMedia('Edit me','text',col,row,c,r,true);
