@@ -73,6 +73,7 @@
           el.dataset.cols=file.cols;
           el.dataset.rows=file.rows;
           el.addEventListener(file.type==='video'?'loadedmetadata':'load',()=>{
+            if(el.dataset.cols && el.dataset.rows) return;
             const w=el.videoWidth||el.naturalWidth,
                   h=el.videoHeight||el.naturalHeight;
             // approximate cell spans based on ~100px per cell

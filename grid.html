@@ -72,7 +72,7 @@
       const {size,step}=getSizes();
       gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
       items.forEach((item,i)=>{
-        if(item.type==='text' && item.text && item.text.includes('inn.style.transform')) return;
+        if(item.type==='text' && item.text && item.text.includes('inn.style')) return;
         const colsSpan=item.cols, rowsSpan=item.rows;
         const col=Math.min(Math.max(0,item.col),cols-colsSpan);
         const row=Math.min(Math.max(0,item.row),rows-rowsSpan);
