@@ -35,10 +35,8 @@
     function gcd(a,b){return b?gcd(b,a%b):a;}
     function getSizes(){
       const r=gridContainer.getBoundingClientRect();
-      return {
-        cw:(r.width-(cols-1)*gap)/cols,
-        ch:(r.height-(rows-1)*gap)/rows
-      };
+      const size=(r.height-(rows-1)*gap)/rows;
+      return { size, step:size+gap };
     }
 
     // Load folders
@@ -87,10 +85,10 @@
     });
 
     function saveLayout(folder){
-      const {cw,ch}=getSizes(),stepX=cw+gap,stepY=ch+gap,items=[];
+      const {step}=getSizes(),items=[];
       document.querySelectorAll('.placed').forEach(el=>{
-        const col=Math.round(parseFloat(el.style.left)/stepX);
-        const row=Math.round(parseFloat(el.style.top)/stepY);
+        const col=Math.round(parseFloat(el.style.left)/step);
+        const row=Math.round(parseFloat(el.style.top)/step);
         items.push({src:el.dataset.src,type:el.dataset.type,col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
       });
       localStorage.setItem(`layout_${folder}`,JSON.stringify(items));
@@ -118,16 +116,15 @@
         colsSpan=thumb?parseInt(thumb.dataset.cols,10):minCells;
         rowsSpan=thumb?parseInt(thumb.dataset.rows,10):minCells;
       }
-      const { cw, ch } = getSizes();
-      const stepX = cw + gap, stepY = ch + gap;
+      const { step } = getSizes();
       const rect = gridContainer.getBoundingClientRect();
-      const col = Math.floor((e.clientX - rect.left) / stepX);
-      const row = Math.floor((e.clientY - rect.top) / stepY);
+      const col = Math.floor((e.clientX - rect.left) / step);
+      const row = Math.floor((e.clientY - rect.top) / step);
       placeMedia(src, type, col, row, colsSpan, rowsSpan, true);
     });
 
     function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave){
-      const {cw,ch}=getSizes(),stepX=cw+gap,stepY=ch+gap;
+      const {size, step}=getSizes();
       const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);
       const wrap=document.createElement('div');
       wrap.className='placed';
@@ -135,10 +132,10 @@
       wrap.dataset.type=type;
       wrap.dataset.cols=colsSpan;
       wrap.dataset.rows=rowsSpan;
-      wrap.style.left=`${c*stepX}px`;
-      wrap.style.top=`${r*stepY}px`;
-      wrap.style.width=`${colsSpan*cw+(colsSpan-1)*gap}px`;
-      wrap.style.height=`${rowsSpan*ch+(rowsSpan-1)*gap}px`;
+      wrap.style.left=`${c*step}px`;
+      wrap.style.top=`${r*step}px`;
+      wrap.style.width=`${colsSpan*size+(colsSpan-1)*gap}px`;
+      wrap.style.height=`${rowsSpan*size+(rowsSpan-1)*gap}px`;
       const media=(type==='video')?document.createElement('video'):document.createElement('img');
       if(type==='video'){media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;}
       media.src=src;
@@ -146,17 +143,17 @@
       wrap.addEventListener('dblclick',()=>{
         wrap.dataset.cols = wrap.dataset.cols * 2;
         wrap.dataset.rows = wrap.dataset.rows * 2;
-        wrap.style.width = `${wrap.dataset.cols*cw + (wrap.dataset.cols-1)*gap}px`;
-        wrap.style.height = `${wrap.dataset.rows*ch + (wrap.dataset.rows-1)*gap}px`;
+        wrap.style.width = `${wrap.dataset.cols*size + (wrap.dataset.cols-1)*gap}px`;
+        wrap.style.height = `${wrap.dataset.rows*size + (wrap.dataset.rows-1)*gap}px`;
         if(doSave) saveLayout(folderSelect.value);
       });
       wrap.addEventListener('click', (e) => {
         if (e.detail === 3) {
           wrap.dataset.cols = Math.max(1, Math.floor(wrap.dataset.cols / 4));
           wrap.dataset.rows = Math.max(1, Math.floor(wrap.dataset.rows / 4));
-          const { cw, ch } = getSizes();
-          wrap.style.width = `${wrap.dataset.cols * cw + (wrap.dataset.cols - 1) * gap}px`;
-          wrap.style.height = `${wrap.dataset.rows * ch + (wrap.dataset.rows - 1) * gap}px`;
+          const { size } = getSizes();
+          wrap.style.width = `${wrap.dataset.cols * size + (wrap.dataset.cols - 1) * gap}px`;
+          wrap.style.height = `${wrap.dataset.rows * size + (wrap.dataset.rows - 1) * gap}px`;
           if (doSave) saveLayout(folderSelect.value);
         }
       });
@@ -166,11 +163,11 @@
       });
       wrap.addEventListener('mouseup',()=> clearTimeout(wrap._deleteTimer));
       gridContainer.appendChild(wrap);
-      makeDraggable(wrap, stepX, stepY, folderSelect.value);
+      makeDraggable(wrap, step, folderSelect.value);
       if(doSave) saveLayout(folderSelect.value);
     }
 
-    function makeDraggable(el, stepX, stepY, folder){
+    function makeDraggable(el, step, folder){
       let offX,offY;
       el.addEventListener('mousedown', e=>{
         if(e.button!==0) return;
@@ -191,9 +188,9 @@
         document.addEventListener('mouseup', ()=>{
           document.removeEventListener('mousemove', onMove);
           const left = parseFloat(el.style.left), top = parseFloat(el.style.top);
-          const col = Math.floor(left/stepX), row = Math.floor(top/stepY);
-          el.style.left = `${col*stepX}px`;
-          el.style.top = `${row*stepY}px`;
+          const col = Math.floor(left/step), row = Math.floor(top/step);
+          el.style.left = `${col*step}px`;
+          el.style.top = `${row*step}px`;
           saveLayout(folder);
         }, { once: true });
       });

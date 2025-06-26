@@ -8,7 +8,7 @@
     body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
     #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
     #message { margin:0; }
-    #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); }
+    #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #000; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:#f0f0f0; border:1px solid #ddd; aspect-ratio:1/1; }
@@ -51,9 +51,14 @@
     let raw=localStorage.getItem(key);
     let items=raw?JSON.parse(raw):[];
     message.textContent=`Folder: ${folder}`;
-    const {size,step}=getSizes();
+    const viewport=document.getElementById('viewport');
+    let offsetX=0,offsetY=0;
+    function applyTransform(){
+      gridContainer.style.transform=`translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    }
 
     function render(){
+      const {size,step}=getSizes();
       gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
       items.forEach(item=>{
         const colsSpan=item.cols, rowsSpan=item.rows;
@@ -69,7 +74,13 @@
         wrap.style.height=`${h}px`;
         const ext=item.src.split('.').pop().toLowerCase();
         const media=document.createElement(/\.(mp4|webm)$/i.test(item.src)?'video':'img');
-        if(media.tagName==='VIDEO')media.controls=true;
+        if(media.tagName==='VIDEO'){
+          media.controls=false;
+          media.autoplay=true;
+          media.loop=true;
+          media.muted=true;
+          media.playsInline=true;
+        }
         media.src=item.src;
         wrap.appendChild(media);
         gridContainer.appendChild(wrap);
@@ -91,6 +102,24 @@
     });
 
     render();
+
+    viewport.addEventListener('mousemove',e=>{
+      const rect=viewport.getBoundingClientRect();
+      const {size,step}=getSizes();
+      const gridW=cols*size+(cols-1)*gap;
+      const gridH=rows*size+(rows-1)*gap;
+      const maxX=Math.max(0,(gridW-rect.width)/2);
+      const maxY=Math.max(0,(gridH-rect.height)/2);
+      const margin=30;
+      let moved=false;
+      if(e.clientX-rect.left<margin) {offsetX=Math.max(offsetX-step,-maxX);moved=true;}
+      else if(rect.right-e.clientX<margin) {offsetX=Math.min(offsetX+step,maxX);moved=true;}
+      if(e.clientY-rect.top<margin) {offsetY=Math.max(offsetY-step,-maxY);moved=true;}
+      else if(rect.bottom-e.clientY<margin) {offsetY=Math.min(offsetY+step,maxY);moved=true;}
+      if(moved) applyTransform();
+    });
+
+    applyTransform();
 
     window.addEventListener('storage', e=>{
       if(e.key===key){
