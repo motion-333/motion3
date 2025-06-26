@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agora Grid Builder</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
     body { margin: 0; display: flex; height: 100vh; font-family: sans-serif; }
     #sidebar { width: 250px; border-right: 1px solid #ccc; padding: 10px; box-sizing: border-box; overflow-y: auto; }
     #sidebar h3 { margin-top: 0; }
     #folderSelect, .draggable-item { width: 100%; margin-bottom: 10px; cursor: grab; }
     #gridContainer { flex: 1; position: relative; background: #fff; }
     #grid { display: grid; grid-template-columns: repeat(80,1fr); grid-template-rows: repeat(45,1fr); gap:1px; width:100%; height:100%; }
-    .cell { background: #f0f0f0; border:1px solid #ddd; aspect-ratio:1/1; }
+    .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
     .placed { position:absolute; overflow:hidden; cursor: move; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+    .text-item { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:'Outfit', sans-serif; }
+    #addTextBtn { width:100%; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -22,12 +25,13 @@
     <select id="folderSelect"><option disabled selected>Loading folders...</option></select>
     <h3>Files</h3>
     <div id="fileList">Select a folder to load files.</div>
+    <button id="addTextBtn">Add Text</button>
   </div>
   <div id="gridContainer"><div id="grid"></div></div>
   <script>
     const cols=80, rows=45, gap=1, minCells=8;
     const gridContainer=document.getElementById('gridContainer'), grid=document.getElementById('grid');
-    const folderSelect=document.getElementById('folderSelect'), fileList=document.getElementById('fileList');
+    const folderSelect=document.getElementById('folderSelect'), fileList=document.getElementById('fileList'), addTextBtn=document.getElementById('addTextBtn');
 
     // Build grid
     for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}    
@@ -89,7 +93,7 @@
       document.querySelectorAll('.placed').forEach(el=>{
         const col=Math.round(parseFloat(el.style.left)/step);
         const row=Math.round(parseFloat(el.style.top)/step);
-        items.push({src:el.dataset.src,type:el.dataset.type,col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
+        items.push({src:el.dataset.src||'',type:el.dataset.type,text:el.dataset.text||'',col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
       });
       localStorage.setItem(`layout_${folder}`,JSON.stringify(items));
     }
@@ -98,7 +102,7 @@
       const raw=localStorage.getItem(`layout_${folder}`);
       if(!raw) return;
       const items=JSON.parse(raw);
-      items.forEach(it=>placeMedia(it.src,it.type,it.col,it.row,it.cols,it.rows,false));
+      items.forEach(it=>placeMedia(it.text||it.src,it.type,it.col,it.row,it.cols,it.rows,false));
     }
 
     gridContainer.addEventListener('dragover',e=>e.preventDefault());
@@ -128,17 +132,30 @@
       const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);
       const wrap=document.createElement('div');
       wrap.className='placed';
-      wrap.dataset.src=src;
       wrap.dataset.type=type;
+      wrap.dataset.src=type==='text'?'' : src;
+      wrap.dataset.text=type==='text'?src:'';
       wrap.dataset.cols=colsSpan;
       wrap.dataset.rows=rowsSpan;
       wrap.style.left=`${c*step}px`;
       wrap.style.top=`${r*step}px`;
       wrap.style.width=`${colsSpan*size+(colsSpan-1)*gap}px`;
       wrap.style.height=`${rowsSpan*size+(rowsSpan-1)*gap}px`;
-      const media=(type==='video')?document.createElement('video'):document.createElement('img');
-      if(type==='video'){media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;}
-      media.src=src;
+      let media;
+      if(type==='video'){
+        media=document.createElement('video');
+        media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;
+        media.src=src;
+      }else if(type==='image'){
+        media=document.createElement('img');
+        media.src=src;
+      }else{
+        media=document.createElement('div');
+        media.className='text-item';
+        media.contentEditable='true';
+        media.textContent=src||'';
+        media.addEventListener('input',()=>{wrap.dataset.text=media.textContent; if(doSave) saveLayout(folderSelect.value);});
+      }
       wrap.appendChild(media);
       wrap.addEventListener('dblclick',()=>{
         wrap.dataset.cols = wrap.dataset.cols * 2;
@@ -195,6 +212,16 @@
         }, { once: true });
       });
     }
+
+    addTextBtn.addEventListener('click',()=>{
+      const ans=prompt('Enter text box size as CxR (e.g., 4x2):','4x2');
+      if(!ans) return;
+      const parts=ans.toLowerCase().split('x');
+      const c=parseInt(parts[0],10), r=parseInt(parts[1],10);
+      if(!(c>0 && r>0)) return alert('Invalid size');
+      const col=Math.floor(cols/2 - c/2), row=Math.floor(rows/2 - r/2);
+      placeMedia('Edit me','text',col,row,c,r,true);
+    });
   </script>
 </body>
 </html>
