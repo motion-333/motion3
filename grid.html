@@ -11,11 +11,11 @@
     #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
     #message { margin:0; }
     #layoutWrapper { display:flex; flex-direction:column; align-items:center; }
-    #header { width:80vmin; display:flex; height:10vmin; margin-bottom:1vmin; }
+    #header { width:80vmin; display:flex; height:10vmin; margin-bottom:-3px; }
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
-    #leftSquare { width:10vmin; height:100%; background:#eee; border-right:3px solid #1449ff; box-sizing:border-box; }
-    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; }
-    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; }
+    #leftSquare { width:10vmin; height:100%; background:#eee; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
+    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; box-sizing:border-box; border:3px solid #1449ff; border-left:none; }
+    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; color:#1449ff; }
     #rightBox .interactive-text .letter { display:inline-block; overflow:hidden; transition:width 0.2s ease; }
     #rightBox .interactive-text .letter .char { display:inline-block; transform-origin:left center; transition:transform 0.2s ease, font-variation-settings 0.2s ease; font-variation-settings:'wght' 400; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
