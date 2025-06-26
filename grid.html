@@ -6,10 +6,17 @@
   <title>Agora Grid Layout</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap');
     body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
     #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
     #message { margin:0; }
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
+    #header { position:absolute; top:0; left:0; width:100%; display:flex; height:10vmin; pointer-events:auto; z-index:5; }
+    #leftSquare { width:10vmin; height:100%; background:#eee; border-right:3px solid #1449ff; box-sizing:border-box; }
+    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; }
+    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; }
+    #rightBox .interactive-text .letter { display:inline-block; overflow:hidden; transition:width 0.2s ease; }
+    #rightBox .interactive-text .letter .char { display:inline-block; transform-origin:left center; transition:transform 0.2s ease, font-variation-settings 0.2s ease; font-variation-settings:'wght' 400; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
@@ -32,6 +39,7 @@
 <body>
   <div id="controls"><div id="message"></div><select id="folderSelect"></select></div>
   <div id="viewport">
+    <div id="header"><div id="leftSquare"></div><div id="rightBox"><div class="interactive-text">Agora</div></div></div>
     <div id="gridContainer"><div id="grid"></div></div>
   </div>
   <script>
@@ -90,8 +98,19 @@
           media=document.createElement('div');
           media.className='text-item';
           media.textContent=item.text||'';
-          media.style.fontSize=`${size}px`;
-          media.style.lineHeight=`${size}px`;
+          const updateScale=scale=>{
+            const {size:sz}=getSizes();
+            media.style.fontSize=`${sz*scale}px`;
+            media.style.lineHeight=`${sz*scale}px`;
+          };
+          wrap.dataset.fontScale='1';
+          updateScale(1);
+          wrap.addEventListener('dblclick',()=>{
+            const scale=parseFloat(wrap.dataset.fontScale)||1;
+            const newScale=scale*2;
+            wrap.dataset.fontScale=newScale;
+            updateScale(newScale);
+          });
         }else{
           media=document.createElement(/\.(mp4|webm)$/i.test(item.src)?'video':'img');
           if(media.tagName==='VIDEO'){
@@ -160,6 +179,27 @@
       }
     },1000);
   })();
+  </script>
+  <script>
+  document.addEventListener('DOMContentLoaded',()=>{
+    const hoverScale=1.8, neighborScale=1.2, normalWght=400, neighborWght=600, hoverWght=900;
+    const C=document.querySelector('#rightBox .interactive-text');
+    if(!C) return;
+    const txt=C.textContent.trim();
+    C.textContent='';
+    for(const ch of txt){
+      const o=document.createElement('span');o.className='letter';
+      const i=document.createElement('span');i.className='char';i.textContent=ch;
+      o.appendChild(i);C.appendChild(o);
+    }
+    const letters=Array.from(C.children);const n=letters.length;let base=[],scaled=[],sum=0,total=0;
+    requestAnimationFrame(()=>{
+      letters.forEach(o=>{const i=o.firstElementChild;i.style.transform='scaleX(1)';const w=i.getBoundingClientRect().width;base.push(w);sum+=w;});
+      total=C.getBoundingClientRect().width;const S=total/sum;scaled=base.map(w=>w*S);
+      letters.forEach((o,i)=>{const inn=o.firstElementChild;o.style.width=scaled[i]+"px";inn.style.width=base[i]+"px";inn.style.transform=`scaleX(${S})`;inn.style.fontVariationSettings=`'wght' ${normalWght}`;});
+      letters.forEach((o,i)=>{const inn=o.firstElementChild;o.onmouseenter=()=>{const wH=scaled[i];const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);const wO=total-wH-wN;const Rh=hoverScale,Rn=neighborScale;const Ro=(total-wH*Rh-wN*Rn)/wO;letters.forEach((oo,j)=>{const ch=oo.firstElementChild;let R,wght;if(j===i){R=Rh;wght=hoverWght;}else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}else{R=Ro;wght=normalWght;}oo.style.width=scaled[j]*R+"px";ch.style.transform=`scaleX(${S*R})`;ch.style.fontVariationSettings=`'wght' ${wght}`;});};o.onmouseleave=()=>{letters.forEach((oo,j)=>{const ch=oo.firstElementChild;oo.style.width=scaled[j]+"px";ch.style.transform=`scaleX(${S})`;ch.style.fontVariationSettings=`'wght' ${normalWght}`;});};});
+    });
+  });
   </script>
 </body>
 </html>
