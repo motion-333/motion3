@@ -21,7 +21,7 @@
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; border:1px solid #1449ff; box-sizing:border-box; }
+    .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
     .text-item {
       width:100%;
@@ -188,29 +188,86 @@
   </script>
   <script>
   function setupInteractiveText(text){
-    const C=document.querySelector('#rightBox .interactive-text');
+    const C = document.querySelector('#rightBox .interactive-text');
     if(!C) return;
-    C.textContent=text || '';
-    const hoverScale=1.8, neighborScale=1.2, normalWght=400, neighborWght=600, hoverWght=900;
-    const txt=C.textContent.trim();
-    C.textContent='';
+    const hoverScale = 1.8,
+          neighborScale = 1.2,
+          normalWght = 400,
+          neighborWght = 600,
+          hoverWght = 900;
+    C.innerHTML = '';
+    const txt = (text || '').trim();
     for(const ch of txt){
-      const out=document.createElement('span');out.className='letter';
-      const inn=document.createElement('span');inn.className='char';inn.textContent=ch;
-      out.appendChild(inn);C.appendChild(out);
+      const out=document.createElement('span');
+      out.className='letter';
+      const inn=document.createElement('span');
+      inn.className='char';
+      inn.textContent=ch;
+      out.appendChild(inn);
+      C.appendChild(out);
     }
-    const letters=Array.from(C.children);const n=letters.length;let base=[],scaled=[],sum=0,total=0;
-    const measure=()=>{
-      letters.forEach(o=>{const inn=o.firstElementChild;inn.style.transform='scaleX(1)';const w=inn.getBoundingClientRect().width;base.push(w);sum+=w;});
-      total=C.getBoundingClientRect().width;const S=total/sum;scaled=base.map(w=>w*S);
-      letters.forEach((o,i)=>{const inn=o.firstElementChild;o.style.width=scaled[i]+"px";inn.style.width=base[i]+"px";inn.style.transform=`scaleX(${S})`;inn.style.fontVariationSettings=`'wght' ${normalWght}`;});
-      letters.forEach((o,i)=>{const inn=o.firstElementChild;o.onmouseenter=()=>{const wH=scaled[i];const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);const wO=total-wH-wN;const Rh=hoverScale,Rn=neighborScale;const Ro=(total-wH*Rh-wN*Rn)/wO;letters.forEach((oo,j)=>{const ch=oo.firstElementChild;let R,wght;if(j===i){R=Rh;wght=hoverWght;}else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}else{R=Ro;wght=normalWght;}oo.style.width=scaled[j]*R+"px";ch.style.transform=`scaleX(${S*R})`;ch.style.fontVariationSettings=`'wght' ${wght}`;});};o.onmouseleave=()=>{letters.forEach((oo,j)=>{const ch=oo.firstElementChild;oo.style.width=scaled[j]+"px";ch.style.transform=`scaleX(${S})`;ch.style.fontVariationSettings=`'wght' ${normalWght}`;});};});
-    };
+    const letters = Array.from(C.children);
+    const n = letters.length;
+    function measure(){
+      const baseWidths=[];
+      let sum=0;
+      letters.forEach(out=>{
+        const inn=out.firstElementChild;
+        inn.style.transform='scaleX(1)';
+        const w=inn.getBoundingClientRect().width;
+        baseWidths.push(w);
+        sum+=w;
+      });
+      const totalW=C.getBoundingClientRect().width;
+      const S=totalW/sum;
+      const scaled=baseWidths.map(w=>w*S);
+      letters.forEach((out,i)=>{
+        const inn=out.firstElementChild;
+        out.style.width=scaled[i]+'px';
+        inn.style.width=baseWidths[i]+'px';
+        inn.style.transform=`scaleX(${S})`;
+        inn.style.fontVariationSettings=`'wght' ${normalWght}`;
+      });
+      letters.forEach((out,i)=>{
+        const inn=out.firstElementChild;
+        out.onmouseenter=()=>{
+          const wH=scaled[i];
+          const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);
+          const wO=totalW-wH-wN;
+          const Rh=hoverScale, Rn=neighborScale;
+          const Ro=(totalW-wH*Rh-wN*Rn)/wO;
+          letters.forEach((o,j)=>{
+            const ch=o.firstElementChild;
+            let R,wght;
+            if(j===i){R=Rh;wght=hoverWght;}
+            else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}
+            else{R=Ro;wght=normalWght;}
+            o.style.width=scaled[j]*R+'px';
+            ch.style.transform=`scaleX(${S*R})`;
+            ch.style.fontVariationSettings=`'wght' ${wght}`;
+          });
+        };
+        out.onmouseleave=()=>{
+          letters.forEach((o,j)=>{
+            const ch=o.firstElementChild;
+            o.style.width=scaled[j]+'px';
+            ch.style.transform=`scaleX(${S})`;
+            ch.style.fontVariationSettings=`'wght' ${normalWght}`;
+          });
+        };
+      });
+    }
+    const doMeasure=()=>requestAnimationFrame(measure);
     if(document.fonts && document.fonts.ready){
-      document.fonts.ready.then(()=>requestAnimationFrame(measure));
+      document.fonts.ready.then(doMeasure);
     }else{
-      requestAnimationFrame(measure);
+      doMeasure();
     }
+    if(C._measure){
+      window.removeEventListener('resize', C._measure);
+    }
+    C._measure=doMeasure;
+    window.addEventListener('resize', doMeasure);
   }
   </script>
 </body>
