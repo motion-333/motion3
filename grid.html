@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agora Grid Layout</title>
+  <style>
+    body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
+    #controls { position:absolute; top:10px; left:10px; z-index:10; }
+    #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
+    #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
+    #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
+    .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
+    .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
+    .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <div id="controls"><select id="folderSelect"></select></div>
+  <div id="viewport"><div id="gridContainer"><div id="grid"></div></div></div>
+  <script>
+  (function(){
+    const cols=80, rows=45, gap=1;
+    const gridContainer=document.getElementById('gridContainer');
+    const grid=document.getElementById('grid');
+    for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}
+    function getSizes(){
+      const cell=grid.querySelector('.cell');
+      const rect=cell.getBoundingClientRect();
+      const size=rect.width;
+      return { size, step:size+gap };
+    }
+    const folderSelect=document.getElementById('folderSelect');
+    let folders=[];
+    try{folders=await (await fetch('/static/pf/folders.json')).json();}catch{}
+    if(folders.length===0){folderSelect.innerHTML='<option>No folders</option>';return;}
+    folderSelect.innerHTML=folders.map(f=>`<option value="${f}">${f}</option>`).join('');
+    let folder=new URLSearchParams(location.search).get('folder')||folders[0];
+    folderSelect.value=folder;
+    let key=`layout_${folder}`;
+    let items=JSON.parse(localStorage.getItem(key)||'[]');
+    function render(){
+      const {size,step}=getSizes();
+      gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
+      items.forEach(it=>{
+        const col=Math.min(Math.max(0,it.col),cols-it.cols);
+        const row=Math.min(Math.max(0,it.row),rows-it.rows);
+        const w=it.cols*size+(it.cols-1)*gap;
+        const h=it.rows*size+(it.rows-1)*gap;
+        const wrap=document.createElement('div');
+        wrap.className='placed';
+        wrap.style.left=`${col*step}px`;
+        wrap.style.top=`${row*step}px`;
+        wrap.style.width=`${w}px`;
+        wrap.style.height=`${h}px`;
+        const media=document.createElement(/\.(mp4|webm)$/i.test(it.src)?'video':'img');
+        if(media.tagName==='VIDEO'){media.autoplay=true;media.loop=true;media.muted=true;media.playsInline=true;}
+        media.src=it.src;
+        wrap.appendChild(media);
+        gridContainer.appendChild(wrap);
+      });
+    }
+    render();
+    const viewport=document.getElementById('viewport');
+    let offsetX=0,offsetY=0;
+    function apply(){
+      gridContainer.style.transform=`translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    }
+    viewport.addEventListener('mousemove',e=>{
+      const rect=viewport.getBoundingClientRect();
+      const {size,step}=getSizes();
+      const gridW=cols*size+(cols-1)*gap;
+      const gridH=rows*size+(rows-1)*gap;
+      const maxX=Math.max(0,(gridW-rect.width)/2 - step);
+      const maxY=Math.max(0,(gridH-rect.height)/2 - step);
+      const margin=60;
+      const pan=step/4;
+      let moved=false;
+      if(e.clientX-rect.left<margin){offsetX=Math.min(offsetX+pan,maxX);moved=true;}
+      else if(rect.right-e.clientX<margin){offsetX=Math.max(offsetX-pan,-maxX);moved=true;}
+      if(e.clientY-rect.top<margin){offsetY=Math.min(offsetY+pan,maxY);moved=true;}
+      else if(rect.bottom-e.clientY<margin){offsetY=Math.max(offsetY-pan,-maxY);moved=true;}
+      if(moved) apply();
+    });
+    apply();
+    folderSelect.addEventListener('change',()=>{
+      folder=folderSelect.value;
+      history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
+      key=`layout_${folder}`;
+      items=JSON.parse(localStorage.getItem(key)||'[]');
+      render();
+    });
+    window.addEventListener('storage',e=>{
+      if(e.key===key){
+        items=e.newValue?JSON.parse(e.newValue):[];
+        render();
+      }
+    });
+  })();
+  </script>
+        inn.style.transform='scaleX(1)';
+        const w=inn.getBoundingClientRect().width;
+        baseWidths.push(w);
+        sum+=w;
+      });
+      const totalW=C.getBoundingClientRect().width;
+      const S=totalW/sum;
+      const scaled=baseWidths.map(w=>w*S);
+      letters.forEach((out,i)=>{
+        const inn=out.firstElementChild;
+        out.style.width=scaled[i]+'px';
+        inn.style.width=baseWidths[i]+'px';
+        inn.style.transform=`scaleX(${S})`;
+        inn.style.fontVariationSettings=`'wght' ${normalWght}`;
+      });
+      letters.forEach((out,i)=>{
+        const inn=out.firstElementChild;
+        out.onmouseenter=()=>{
+          const wH=scaled[i];
+          const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);
+          const wO=totalW-wH-wN;
+          const Rh=hoverScale, Rn=neighborScale;
+          const Ro=(totalW-wH*Rh-wN*Rn)/wO;
+          letters.forEach((o,j)=>{
+            const ch=o.firstElementChild;
+            let R,wght;
+            if(j===i){R=Rh;wght=hoverWght;}
+            else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}
+            else{R=Ro;wght=normalWght;}
+            o.style.width=scaled[j]*R+'px';
+            ch.style.transform=`scaleX(${S*R})`;
+            ch.style.fontVariationSettings=`'wght' ${wght}`;
+          });
+        };
+        out.onmouseleave=()=>{
+          letters.forEach((o,j)=>{
+            const ch=o.firstElementChild;
+            o.style.width=scaled[j]+'px';
+            ch.style.transform=`scaleX(${S})`;
+            ch.style.fontVariationSettings=`'wght' ${normalWght}`;
+          });
+        };
+      });
+    }
+    const doMeasure=()=>requestAnimationFrame(measure);
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(doMeasure);
+    }else{
+      doMeasure();
+    }
+    if(C._measure){
+      window.removeEventListener('resize', C._measure);
+    }
+    C._measure=doMeasure;
+    window.addEventListener('resize', doMeasure);
+  }
+  </script>
+</body>
+</html>
