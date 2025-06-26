@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agora Grid Builder</title>
+  <style>
+    body { margin: 0; display: flex; height: 100vh; font-family: sans-serif; }
+    #sidebar { width: 250px; border-right: 1px solid #ccc; padding: 10px; box-sizing: border-box; overflow-y: auto; }
+    #sidebar h3 { margin-top: 0; }
+    #folderSelect, .draggable-item { width: 100%; margin-bottom: 10px; cursor: grab; }
+    #gridContainer { flex: 1; position: relative; background: #fff; }
+    #grid { display: grid; grid-template-columns: repeat(80,1fr); grid-template-rows: repeat(45,1fr); gap:1px; width:100%; height:100%; }
+    .cell { background: #f0f0f0; border:1px solid #ddd; aspect-ratio:1/1; }
+    .placed { position:absolute; overflow:hidden; cursor: move; }
+    .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h3>Select Folder</h3>
+    <select id="folderSelect"><option disabled selected>Loading folders...</option></select>
+    <h3>Files</h3>
+    <div id="fileList">Select a folder to load files.</div>
+  </div>
+  <div id="gridContainer"><div id="grid"></div></div>
+  <script>
+    const cols=80, rows=45, gap=1, minCells=8;
+    const gridContainer=document.getElementById('gridContainer'), grid=document.getElementById('grid');
+    const folderSelect=document.getElementById('folderSelect'), fileList=document.getElementById('fileList');
+
+    // Build grid
+    for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}    
+
+    function gcd(a,b){return b?gcd(b,a%b):a;}
+    function getSizes(){const r=gridContainer.getBoundingClientRect();return{cw:(r.width-(cols-1)*gap)/cols,ch:(r.height-(rows-1)*gap)/rows};}
+
+    // Load folders
+    fetch('/static/pf/folders.json')
+      .then(r=>r.json()).then(fs=>{folderSelect.innerHTML='<option disabled selected>Select folder</option>'+fs.map(f=>`<option value="${f}">${f}</option>`).join('');})
+      .catch(_=>folderSelect.innerHTML='<option disabled>Error</option>');
+
+    // On folder change
+    folderSelect.addEventListener('change',()=>{
+      const folder=folderSelect.value;fileList.innerHTML='';
+      fetch(`/static/pf/${folder}/files.json`).then(r=>{if(!r.ok)throw'';return r.json();}).then(files=>{
+        files.forEach(file=>{
+          const el=(file.type==='video')?document.createElement('video'):document.createElement('img');
+          if(file.type==='video'){el.controls=true;el.loop=true;el.autoplay=true;el.muted=true;}
+          el.src=file.src;el.className='draggable-item';el.draggable=true;
+          el.dataset.src=file.src;
+          el.dataset.type=file.type;
+          el.dataset.cols=file.cols;
+          el.dataset.rows=file.rows;
+          el.addEventListener(file.type==='video'?'loadedmetadata':'load',()=>{
+            const w=el.videoWidth||el.naturalWidth,h=el.videoHeight||el.naturalHeight;
+            const d=gcd(w,h), rw=w/d, rh=h/d;
+            const scale=Math.max(1,Math.ceil(minCells/Math.max(rw,rh)));
+            el.dataset.cols=rw*scale;el.dataset.rows=rh*scale;
+          });
+          el.addEventListener('dragstart',e=>{
+            e.dataTransfer.setData('text/plain', el.dataset.src);
+            e.dataTransfer.setData('src',el.dataset.src);
+            e.dataTransfer.setData('cols',el.dataset.cols);
+            e.dataTransfer.setData('rows',el.dataset.rows);
+            e.dataTransfer.setData('type',el.dataset.type);
+          });
+          fileList.appendChild(el);
+        });loadLayout(folder);
+      }).catch(_=>fileList.innerHTML='<div class="error">Error loading files.json</div>');
+    });
+
+    function saveLayout(folder){const{cw,ch}=getSizes(),step=ch+gap,items=[];
+      document.querySelectorAll('.placed').forEach(el=>{
+        const col=Math.round(parseFloat(el.style.left)/step),row=Math.round(parseFloat(el.style.top)/step);
+        items.push({src:el.dataset.src,type:el.dataset.type,col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
+      });localStorage.setItem(`layout_${folder}`,JSON.stringify(items));}
+    function loadLayout(folder){document.querySelectorAll('.placed').forEach(el=>el.remove());const raw=localStorage.getItem(`layout_${folder}`);if(!raw)return;const items=JSON.parse(raw);items.forEach(it=>placeMedia(it.src,it.type,it.col,it.row,it.cols,it.rows,false));}
+
+    gridContainer.addEventListener('dragover',e=>e.preventDefault());
+    gridContainer.addEventListener('drop', e => {
+      e.preventDefault();
+      let src = e.dataTransfer.getData('src');
+      let type = e.dataTransfer.getData('type');
+      if (!type) {
+        type = /\.(mp4|webm)$/i.test(src) ? 'video' : 'image';
+      }
+      let colsSpan = parseInt(e.dataTransfer.getData('cols'), 10);
+      let rowsSpan = parseInt(e.dataTransfer.getData('rows'), 10);
+      if (!(colsSpan > 0 && rowsSpan > 0)) {
+        const thumb = document.querySelector(`.draggable-item[src="${src}"]`);
+        colsSpan = thumb ? parseInt(thumb.dataset.cols, 10) : minCells;
+        rowsSpan = thumb ? parseInt(thumb.dataset.rows, 10) : minCells;
+      }
+      const { cw, ch } = getSizes();
+      const step = ch + gap;
+      const rect = gridContainer.getBoundingClientRect();
+      const col = Math.floor((e.clientX - rect.left) / step);
+      const row = Math.floor((e.clientY - rect.top) / step);
+      placeMedia(src, type, col, row, colsSpan, rowsSpan, true);
+    });
+
+    function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave){const{cw,ch}=getSizes(),step=ch+gap;const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);const wrap=document.createElement('div');wrap.className='placed';wrap.dataset.src=src;wrap.dataset.type=type;wrap.dataset.cols=colsSpan;wrap.dataset.rows=rowsSpan;wrap.style.left=`${c*step}px`;wrap.style.top=`${r*step}px`;wrap.style.width=`${colsSpan*cw+(colsSpan-1)*gap}px`;wrap.style.height=`${rowsSpan*ch+(rowsSpan-1)*gap}px`;const media=(type==='video')?document.createElement('video'):document.createElement('img');if(type==='video'){media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;}media.src=src;wrap.appendChild(media);
+      wrap.addEventListener('dblclick',()=>{
+        wrap.dataset.cols = wrap.dataset.cols * 2;
+        wrap.dataset.rows = wrap.dataset.rows * 2;
+        wrap.style.width = `${wrap.dataset.cols*cw + (wrap.dataset.cols-1)*gap}px`;
+        wrap.style.height = `${wrap.dataset.rows*ch + (wrap.dataset.rows-1)*gap}px`;
+        if(doSave) saveLayout(folderSelect.value);
+      });
+      wrap.addEventListener('click', (e) => {
+        if (e.detail === 3) {
+          wrap.dataset.cols = Math.max(1, Math.floor(wrap.dataset.cols / 4));
+          wrap.dataset.rows = Math.max(1, Math.floor(wrap.dataset.rows / 4));
+          const { cw, ch } = getSizes();
+          wrap.style.width = `${wrap.dataset.cols * cw + (wrap.dataset.cols - 1) * gap}px`;
+          wrap.style.height = `${wrap.dataset.rows * ch + (wrap.dataset.rows - 1) * gap}px`;
+          if (doSave) saveLayout(folderSelect.value);
+        }
+      });
+      wrap.addEventListener('mousedown', e=>{
+        if(e.button!==0) return;
+        wrap._deleteTimer = setTimeout(()=>{ wrap.remove(); if(doSave) saveLayout(folderSelect.value); }, 3000);
+      });
+      wrap.addEventListener('mouseup',()=> clearTimeout(wrap._deleteTimer));
+      gridContainer.appendChild(wrap);
+      makeDraggable(wrap, step, folderSelect.value);
+      if(doSave) saveLayout(folderSelect.value);
+    }
+
+    function makeDraggable(el, step, folder){
+      let offX,offY;
+      el.addEventListener('mousedown', e=>{
+        if(e.button!==0) return;
+        e.stopPropagation();
+        offX = e.clientX - el.getBoundingClientRect().left;
+        offY = e.clientY - el.getBoundingClientRect().top;
+        el.style.zIndex = (parseInt(el.style.zIndex) || 1) + 1;
+        const onMove = ev => {
+          const rect = gridContainer.getBoundingClientRect();
+          let x = ev.clientX - rect.left - offX;
+          let y = ev.clientY - rect.top - offY;
+          x = Math.max(0, Math.min(rect.width - el.offsetWidth, x));
+          y = Math.max(0, Math.min(rect.height - el.offsetHeight, y));
+          el.style.left = `${x}px`;
+          el.style.top = `${y}px`;
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', ()=>{
+          document.removeEventListener('mousemove', onMove);
+          const left = parseFloat(el.style.left), top = parseFloat(el.style.top);
+          const col = Math.floor(left/step), row = Math.floor(top/step);
+          el.style.left = `${col*step}px`;
+          el.style.top = `${row*step}px`;
+          saveLayout(folder);
+        }, { once: true });
+      });
+    }
+  </script>
+</body>
+</html>
