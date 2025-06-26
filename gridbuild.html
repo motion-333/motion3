@@ -49,8 +49,9 @@
 
     function gcd(a,b){return b?gcd(b,a%b):a;}
     function getSizes(){
-      const rect=gridContainer.getBoundingClientRect();
-      const size = Math.floor((rect.width-(cols-1)*gap)/cols);
+      const cell = grid.querySelector('.cell');
+      const rect = cell.getBoundingClientRect();
+      const size = rect.width; // square cell size including border
       return { size, step:size+gap };
     }
 
