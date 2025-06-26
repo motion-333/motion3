@@ -18,15 +18,13 @@
     .text-item {
       width:100%;
       height:100%;
-      display:flex;
-      align-items:flex-start;
-      justify-content:flex-start;
+      display:block;
       font-family:'Outfit', sans-serif;
       background:#fff;
       margin:0;
       padding:0;
-      line-height:1;
       white-space:pre-wrap;
+      box-sizing:border-box;
       outline:none;
     }
     #addTextBtn { width:100%; margin-top:10px; }
@@ -51,8 +49,9 @@
 
     function gcd(a,b){return b?gcd(b,a%b):a;}
     function getSizes(){
-      const r=gridContainer.getBoundingClientRect();
-      const size=(r.width-(cols-1)*gap)/cols;
+      const cell = grid.querySelector('.cell');
+      const rect = cell.getBoundingClientRect();
+      const size = rect.width; // square cell size including border
       return { size, step:size+gap };
     }
 
@@ -182,6 +181,12 @@
         wrap.dataset.fontScale='1';
         updateScale(1);
         media.addEventListener('input',()=>{wrap.dataset.text=media.textContent; if(doSave) saveLayout(folderSelect.value);});
+        media.addEventListener('keydown',e=>{
+          if(e.key==='Enter'){
+            e.preventDefault();
+            document.execCommand('insertLineBreak');
+          }
+        });
         wrap.addEventListener('dblclick',()=>{
           const scale=parseFloat(wrap.dataset.fontScale)||1;
           const newScale=scale*2;
