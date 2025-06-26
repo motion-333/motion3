@@ -13,7 +13,7 @@
     #gridContainer { flex: 1; position: relative; background: #fff; }
     #grid { display: grid; grid-template-columns: repeat(80,1fr); grid-template-rows: repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; cursor: move; }
+    .placed { position:absolute; overflow:hidden; cursor: move; border:1px solid #1449ff; box-sizing:border-box; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
     .text-item {
       width:100%;

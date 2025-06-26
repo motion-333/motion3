@@ -15,13 +15,13 @@
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
     #leftSquare { width:10vmin; height:100%; background:#eee; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
     #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:3px solid #1449ff; border-left:3px solid #1449ff; }
-    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; color:#1449ff; text-align:center; }
+    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; line-height:1em; color:#1449ff; text-align:center; }
     #rightBox .interactive-text .letter { display:inline-block; overflow:hidden; transition:width 0.2s ease; }
     #rightBox .interactive-text .letter .char { display:inline-block; transform-origin:left center; transition:transform 0.2s ease, font-variation-settings 0.2s ease; font-variation-settings:'wght' 400; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; }
+    .placed { position:absolute; overflow:hidden; border:1px solid #1449ff; box-sizing:border-box; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
     .text-item {
       width:100%;
@@ -200,12 +200,17 @@
       out.appendChild(inn);C.appendChild(out);
     }
     const letters=Array.from(C.children);const n=letters.length;let base=[],scaled=[],sum=0,total=0;
-    requestAnimationFrame(()=>{
+    const measure=()=>{
       letters.forEach(o=>{const inn=o.firstElementChild;inn.style.transform='scaleX(1)';const w=inn.getBoundingClientRect().width;base.push(w);sum+=w;});
       total=C.getBoundingClientRect().width;const S=total/sum;scaled=base.map(w=>w*S);
       letters.forEach((o,i)=>{const inn=o.firstElementChild;o.style.width=scaled[i]+"px";inn.style.width=base[i]+"px";inn.style.transform=`scaleX(${S})`;inn.style.fontVariationSettings=`'wght' ${normalWght}`;});
       letters.forEach((o,i)=>{const inn=o.firstElementChild;o.onmouseenter=()=>{const wH=scaled[i];const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);const wO=total-wH-wN;const Rh=hoverScale,Rn=neighborScale;const Ro=(total-wH*Rh-wN*Rn)/wO;letters.forEach((oo,j)=>{const ch=oo.firstElementChild;let R,wght;if(j===i){R=Rh;wght=hoverWght;}else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}else{R=Ro;wght=normalWght;}oo.style.width=scaled[j]*R+"px";ch.style.transform=`scaleX(${S*R})`;ch.style.fontVariationSettings=`'wght' ${wght}`;});};o.onmouseleave=()=>{letters.forEach((oo,j)=>{const ch=oo.firstElementChild;oo.style.width=scaled[j]+"px";ch.style.transform=`scaleX(${S})`;ch.style.fontVariationSettings=`'wght' ${normalWght}`;});};});
-    });
+    };
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(()=>requestAnimationFrame(measure));
+    }else{
+      requestAnimationFrame(measure);
+    }
   }
   </script>
 </body>
