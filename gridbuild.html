@@ -211,6 +211,10 @@
         });
       }
       wrap.appendChild(media);
+      // ensure on top when created
+      const maxZ=[...document.querySelectorAll('.placed')]
+        .reduce((m,el)=>Math.max(m,parseInt(el.style.zIndex)||0),0);
+      wrap.style.zIndex=maxZ+1;
       wrap.addEventListener('click', (e) => {
         if (e.detail === 3) {
           wrap.dataset.cols = Math.max(1, Math.floor(wrap.dataset.cols / 4));
@@ -238,7 +242,9 @@
         e.stopPropagation();
         offX = e.clientX - el.getBoundingClientRect().left;
         offY = e.clientY - el.getBoundingClientRect().top;
-        el.style.zIndex = (parseInt(el.style.zIndex) || 1) + 1;
+        const maxZ=[...document.querySelectorAll('.placed')]
+          .reduce((m,el)=>Math.max(m,parseInt(el.style.zIndex)||0),0);
+        el.style.zIndex = maxZ + 1;
         const onMove = ev => {
           const rect = gridContainer.getBoundingClientRect();
           let x = ev.clientX - rect.left - offX;
