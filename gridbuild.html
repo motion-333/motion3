@@ -33,7 +33,13 @@
     for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}    
 
     function gcd(a,b){return b?gcd(b,a%b):a;}
-    function getSizes(){const r=gridContainer.getBoundingClientRect();return{cw:(r.width-(cols-1)*gap)/cols,ch:(r.height-(rows-1)*gap)/rows};}
+    function getSizes(){
+      const r=gridContainer.getBoundingClientRect();
+      return {
+        cw:(r.width-(cols-1)*gap)/cols,
+        ch:(r.height-(rows-1)*gap)/rows
+      };
+    }
 
     // Load folders
     fetch('/static/pf/folders.json')
@@ -53,10 +59,16 @@
           el.dataset.cols=file.cols;
           el.dataset.rows=file.rows;
           el.addEventListener(file.type==='video'?'loadedmetadata':'load',()=>{
-            const w=el.videoWidth||el.naturalWidth,h=el.videoHeight||el.naturalHeight;
-            const d=gcd(w,h), rw=w/d, rh=h/d;
+            const w=el.videoWidth||el.naturalWidth,
+                  h=el.videoHeight||el.naturalHeight;
+            // approximate cell spans based on ~100px per cell
+            const cw=Math.max(1,Math.round(w/100));
+            const ch=Math.max(1,Math.round(h/100));
+            const d=gcd(cw,ch);
+            const rw=cw/d, rh=ch/d;
             const scale=Math.max(1,Math.ceil(minCells/Math.max(rw,rh)));
-            el.dataset.cols=rw*scale;el.dataset.rows=rh*scale;
+            el.dataset.cols=rw*scale;
+            el.dataset.rows=rh*scale;
           });
           el.addEventListener('dragstart',e=>{
             const payload=JSON.stringify({
@@ -74,12 +86,22 @@
       }).catch(_=>fileList.innerHTML='<div class="error">Error loading files.json</div>');
     });
 
-    function saveLayout(folder){const{cw,ch}=getSizes(),step=ch+gap,items=[];
+    function saveLayout(folder){
+      const {cw,ch}=getSizes(),stepX=cw+gap,stepY=ch+gap,items=[];
       document.querySelectorAll('.placed').forEach(el=>{
-        const col=Math.round(parseFloat(el.style.left)/step),row=Math.round(parseFloat(el.style.top)/step);
+        const col=Math.round(parseFloat(el.style.left)/stepX);
+        const row=Math.round(parseFloat(el.style.top)/stepY);
         items.push({src:el.dataset.src,type:el.dataset.type,col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
-      });localStorage.setItem(`layout_${folder}`,JSON.stringify(items));}
-    function loadLayout(folder){document.querySelectorAll('.placed').forEach(el=>el.remove());const raw=localStorage.getItem(`layout_${folder}`);if(!raw)return;const items=JSON.parse(raw);items.forEach(it=>placeMedia(it.src,it.type,it.col,it.row,it.cols,it.rows,false));}
+      });
+      localStorage.setItem(`layout_${folder}`,JSON.stringify(items));
+    }
+    function loadLayout(folder){
+      document.querySelectorAll('.placed').forEach(el=>el.remove());
+      const raw=localStorage.getItem(`layout_${folder}`);
+      if(!raw) return;
+      const items=JSON.parse(raw);
+      items.forEach(it=>placeMedia(it.src,it.type,it.col,it.row,it.cols,it.rows,false));
+    }
 
     gridContainer.addEventListener('dragover',e=>e.preventDefault());
     gridContainer.addEventListener('drop', e => {
@@ -97,14 +119,30 @@
         rowsSpan=thumb?parseInt(thumb.dataset.rows,10):minCells;
       }
       const { cw, ch } = getSizes();
-      const step = ch + gap;
+      const stepX = cw + gap, stepY = ch + gap;
       const rect = gridContainer.getBoundingClientRect();
-      const col = Math.floor((e.clientX - rect.left) / step);
-      const row = Math.floor((e.clientY - rect.top) / step);
+      const col = Math.floor((e.clientX - rect.left) / stepX);
+      const row = Math.floor((e.clientY - rect.top) / stepY);
       placeMedia(src, type, col, row, colsSpan, rowsSpan, true);
     });
 
-    function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave){const{cw,ch}=getSizes(),step=ch+gap;const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);const wrap=document.createElement('div');wrap.className='placed';wrap.dataset.src=src;wrap.dataset.type=type;wrap.dataset.cols=colsSpan;wrap.dataset.rows=rowsSpan;wrap.style.left=`${c*step}px`;wrap.style.top=`${r*step}px`;wrap.style.width=`${colsSpan*cw+(colsSpan-1)*gap}px`;wrap.style.height=`${rowsSpan*ch+(rowsSpan-1)*gap}px`;const media=(type==='video')?document.createElement('video'):document.createElement('img');if(type==='video'){media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;}media.src=src;wrap.appendChild(media);
+    function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave){
+      const {cw,ch}=getSizes(),stepX=cw+gap,stepY=ch+gap;
+      const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);
+      const wrap=document.createElement('div');
+      wrap.className='placed';
+      wrap.dataset.src=src;
+      wrap.dataset.type=type;
+      wrap.dataset.cols=colsSpan;
+      wrap.dataset.rows=rowsSpan;
+      wrap.style.left=`${c*stepX}px`;
+      wrap.style.top=`${r*stepY}px`;
+      wrap.style.width=`${colsSpan*cw+(colsSpan-1)*gap}px`;
+      wrap.style.height=`${rowsSpan*ch+(rowsSpan-1)*gap}px`;
+      const media=(type==='video')?document.createElement('video'):document.createElement('img');
+      if(type==='video'){media.controls=false;media.loop=true;media.autoplay=true;media.muted=true;}
+      media.src=src;
+      wrap.appendChild(media);
       wrap.addEventListener('dblclick',()=>{
         wrap.dataset.cols = wrap.dataset.cols * 2;
         wrap.dataset.rows = wrap.dataset.rows * 2;
@@ -128,11 +166,11 @@
       });
       wrap.addEventListener('mouseup',()=> clearTimeout(wrap._deleteTimer));
       gridContainer.appendChild(wrap);
-      makeDraggable(wrap, step, folderSelect.value);
+      makeDraggable(wrap, stepX, stepY, folderSelect.value);
       if(doSave) saveLayout(folderSelect.value);
     }
 
-    function makeDraggable(el, step, folder){
+    function makeDraggable(el, stepX, stepY, folder){
       let offX,offY;
       el.addEventListener('mousedown', e=>{
         if(e.button!==0) return;
@@ -153,9 +191,9 @@
         document.addEventListener('mouseup', ()=>{
           document.removeEventListener('mousemove', onMove);
           const left = parseFloat(el.style.left), top = parseFloat(el.style.top);
-          const col = Math.floor(left/step), row = Math.floor(top/step);
-          el.style.left = `${col*step}px`;
-          el.style.top = `${row*step}px`;
+          const col = Math.floor(left/stepX), row = Math.floor(top/stepY);
+          el.style.left = `${col*stepX}px`;
+          el.style.top = `${row*stepY}px`;
           saveLayout(folder);
         }, { once: true });
       });

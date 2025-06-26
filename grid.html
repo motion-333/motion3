@@ -6,7 +6,8 @@
   <title>Agora Grid Layout</title>
   <style>
     body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
-    #message { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; }
+    #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
+    #message { margin:0; }
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
@@ -16,7 +17,7 @@
   </style>
 </head>
 <body>
-  <div id="message"></div>
+  <div id="controls"><div id="message"></div><select id="folderSelect"></select></div>
   <div id="viewport">
     <div id="gridContainer"><div id="grid"></div></div>
   </div>
@@ -26,6 +27,7 @@
     const gridContainer=document.getElementById('gridContainer');
     const grid=document.getElementById('grid');
     const message=document.getElementById('message');
+    const folderSelect=document.getElementById('folderSelect');
     for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}
     function getSizes(){
       const r=gridContainer.getBoundingClientRect();
@@ -34,22 +36,21 @@
       return { size:cellSize, step:cellSize+gap };
     }
 
-    let folder=new URLSearchParams(location.search).get('folder');
-    if(!folder){
-      try{
-        const fs=await (await fetch('/static/pf/folders.json')).json();
-        folder=fs[0];
-        if(folder) history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
-      }catch(e){
-        message.textContent='No folders available';
-        return;
-      }
+    let folders=[];
+    try{
+      folders = await (await fetch('/static/pf/folders.json')).json();
+      folderSelect.innerHTML = folders.map(f=>`<option value="${f}">${f}</option>`).join('');
+    }catch(e){
+      message.textContent='No folders available';
+      return;
     }
+
+    let folder=new URLSearchParams(location.search).get('folder')||folders[0];
+    folderSelect.value=folder;
+    let key=`layout_${folder}`;
+    let raw=localStorage.getItem(key);
+    let items=raw?JSON.parse(raw):[];
     message.textContent=`Folder: ${folder}`;
-    const key=`layout_${folder}`;
-    const raw=localStorage.getItem(key);
-    if(!raw){message.textContent=`No layout for '${folder}'`;return;}
-    let items=JSON.parse(raw);
     const {size,step}=getSizes();
 
     function render(){
@@ -75,9 +76,22 @@
       });
     }
 
+    function loadLayout(name){
+      key=`layout_${name}`;
+      const raw=localStorage.getItem(key);
+      items=raw?JSON.parse(raw):[];
+      message.textContent=raw?`Folder: ${name}`:`No layout for '${name}'`;
+      render();
+    }
+
+    folderSelect.addEventListener('change',()=>{
+      folder=folderSelect.value;
+      history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
+      loadLayout(folder);
+    });
+
     render();
 
-    // live update when layout changes in another tab
     window.addEventListener('storage', e=>{
       if(e.key===key){
         items = e.newValue ? JSON.parse(e.newValue) : [];
