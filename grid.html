@@ -10,8 +10,9 @@
     body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
     #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
     #message { margin:0; }
+    #layoutWrapper { display:flex; flex-direction:column; align-items:center; }
+    #header { width:80vmin; display:flex; height:10vmin; margin-bottom:1vmin; }
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
-    #header { position:absolute; top:0; left:0; width:100%; display:flex; height:10vmin; pointer-events:auto; z-index:5; }
     #leftSquare { width:10vmin; height:100%; background:#eee; border-right:3px solid #1449ff; box-sizing:border-box; }
     #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; }
     #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; }
@@ -38,9 +39,9 @@
 </head>
 <body>
   <div id="controls"><div id="message"></div><select id="folderSelect"></select></div>
-  <div id="viewport">
-    <div id="header"><div id="leftSquare"></div><div id="rightBox"><div class="interactive-text">Agora</div></div></div>
-    <div id="gridContainer"><div id="grid"></div></div>
+  <div id="layoutWrapper">
+    <div id="header"><div id="leftSquare"></div><div id="rightBox"><div class="interactive-text"></div></div></div>
+    <div id="viewport"><div id="gridContainer"><div id="grid"></div></div></div>
   </div>
   <script>
   (async function(){
@@ -68,6 +69,7 @@
 
     let folder=new URLSearchParams(location.search).get('folder')||folders[0];
     folderSelect.value=folder;
+    setupInteractiveText(folder);
     let key=`layout_${folder}`;
     let raw=localStorage.getItem(key);
     let items=raw?JSON.parse(raw):[];
@@ -81,7 +83,7 @@
     function render(){
       const {size,step}=getSizes();
       gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
-      items.forEach(item=>{
+      items.forEach((item,i)=>{
         const colsSpan=item.cols, rowsSpan=item.rows;
         const col=Math.min(Math.max(0,item.col),cols-colsSpan);
         const row=Math.min(Math.max(0,item.row),rows-rowsSpan);
@@ -103,13 +105,15 @@
             media.style.fontSize=`${sz*scale}px`;
             media.style.lineHeight=`${sz*scale}px`;
           };
-          wrap.dataset.fontScale='1';
-          updateScale(1);
+          wrap.dataset.fontScale=item.fontScale||1;
+          updateScale(parseFloat(wrap.dataset.fontScale));
           wrap.addEventListener('dblclick',()=>{
             const scale=parseFloat(wrap.dataset.fontScale)||1;
             const newScale=scale*2;
             wrap.dataset.fontScale=newScale;
+            items[i].fontScale=newScale;
             updateScale(newScale);
+            localStorage.setItem(key,JSON.stringify(items));
           });
         }else{
           media=document.createElement(/\.(mp4|webm)$/i.test(item.src)?'video':'img');
@@ -138,6 +142,7 @@
     folderSelect.addEventListener('change',()=>{
       folder=folderSelect.value;
       history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
+      setupInteractiveText(folder);
       loadLayout(folder);
     });
 
@@ -181,25 +186,26 @@
   })();
   </script>
   <script>
-  document.addEventListener('DOMContentLoaded',()=>{
-    const hoverScale=1.8, neighborScale=1.2, normalWght=400, neighborWght=600, hoverWght=900;
+  function setupInteractiveText(text){
     const C=document.querySelector('#rightBox .interactive-text');
     if(!C) return;
+    C.textContent=text || '';
+    const hoverScale=1.8, neighborScale=1.2, normalWght=400, neighborWght=600, hoverWght=900;
     const txt=C.textContent.trim();
     C.textContent='';
     for(const ch of txt){
-      const o=document.createElement('span');o.className='letter';
-      const i=document.createElement('span');i.className='char';i.textContent=ch;
-      o.appendChild(i);C.appendChild(o);
+      const out=document.createElement('span');out.className='letter';
+      const inn=document.createElement('span');inn.className='char';inn.textContent=ch;
+      out.appendChild(inn);C.appendChild(out);
     }
     const letters=Array.from(C.children);const n=letters.length;let base=[],scaled=[],sum=0,total=0;
     requestAnimationFrame(()=>{
-      letters.forEach(o=>{const i=o.firstElementChild;i.style.transform='scaleX(1)';const w=i.getBoundingClientRect().width;base.push(w);sum+=w;});
+      letters.forEach(o=>{const inn=o.firstElementChild;inn.style.transform='scaleX(1)';const w=inn.getBoundingClientRect().width;base.push(w);sum+=w;});
       total=C.getBoundingClientRect().width;const S=total/sum;scaled=base.map(w=>w*S);
       letters.forEach((o,i)=>{const inn=o.firstElementChild;o.style.width=scaled[i]+"px";inn.style.width=base[i]+"px";inn.style.transform=`scaleX(${S})`;inn.style.fontVariationSettings=`'wght' ${normalWght}`;});
       letters.forEach((o,i)=>{const inn=o.firstElementChild;o.onmouseenter=()=>{const wH=scaled[i];const wN=(i>0?scaled[i-1]:0)+(i<n-1?scaled[i+1]:0);const wO=total-wH-wN;const Rh=hoverScale,Rn=neighborScale;const Ro=(total-wH*Rh-wN*Rn)/wO;letters.forEach((oo,j)=>{const ch=oo.firstElementChild;let R,wght;if(j===i){R=Rh;wght=hoverWght;}else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}else{R=Ro;wght=normalWght;}oo.style.width=scaled[j]*R+"px";ch.style.transform=`scaleX(${S*R})`;ch.style.fontVariationSettings=`'wght' ${wght}`;});};o.onmouseleave=()=>{letters.forEach((oo,j)=>{const ch=oo.firstElementChild;oo.style.width=scaled[j]+"px";ch.style.transform=`scaleX(${S})`;ch.style.fontVariationSettings=`'wght' ${normalWght}`;});};});
     });
-  });
+  }
   </script>
 </body>
 </html>

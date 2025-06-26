@@ -105,7 +105,15 @@
       document.querySelectorAll('.placed').forEach(el=>{
         const col=Math.round(parseFloat(el.style.left)/step);
         const row=Math.round(parseFloat(el.style.top)/step);
-        items.push({src:el.dataset.src||'',type:el.dataset.type,text:el.dataset.text||'',col,row,cols:parseFloat(el.dataset.cols),rows:parseFloat(el.dataset.rows)});
+        items.push({
+          src:el.dataset.src||'',
+          type:el.dataset.type,
+          text:el.dataset.text||'',
+          col,row,
+          cols:parseFloat(el.dataset.cols),
+          rows:parseFloat(el.dataset.rows),
+          fontScale:parseFloat(el.dataset.fontScale)||1
+        });
       });
       localStorage.setItem(`layout_${folder}`,JSON.stringify(items));
     }
@@ -114,7 +122,7 @@
       const raw=localStorage.getItem(`layout_${folder}`);
       if(!raw) return;
       const items=JSON.parse(raw);
-      items.forEach(it=>placeMedia(it.text||it.src,it.type,it.col,it.row,it.cols,it.rows,false));
+      items.forEach(it=>placeMedia(it.text||it.src,it.type,it.col,it.row,it.cols,it.rows,false,it.fontScale||1));
     }
 
     gridContainer.addEventListener('dragover',e=>e.preventDefault());
@@ -136,10 +144,10 @@
       const rect = gridContainer.getBoundingClientRect();
       const col = Math.floor((e.clientX - rect.left) / step);
       const row = Math.floor((e.clientY - rect.top) / step);
-      placeMedia(src, type, col, row, colsSpan, rowsSpan, true);
+      placeMedia(src, type, col, row, colsSpan, rowsSpan, true, 1);
     });
 
-    function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave){
+    function placeMedia(src,type,col,row,colsSpan,rowsSpan,doSave,fontScale=1){
       const {size, step}=getSizes();
       const c=Math.min(Math.max(0,col),cols-colsSpan),r=Math.min(Math.max(0,row),rows-rowsSpan);
       const wrap=document.createElement('div');
@@ -149,6 +157,7 @@
       wrap.dataset.text=type==='text'?src:'';
       wrap.dataset.cols=colsSpan;
       wrap.dataset.rows=rowsSpan;
+      wrap.dataset.fontScale=fontScale;
       wrap.style.left=`${c*step}px`;
       wrap.style.top=`${r*step}px`;
       wrap.style.width=`${colsSpan*size+(colsSpan-1)*gap}px`;
@@ -185,8 +194,7 @@
           media.style.fontSize=`${sz*scale}px`;
           media.style.lineHeight=`${sz*scale}px`;
         };
-        wrap.dataset.fontScale='1';
-        updateScale(1);
+        updateScale(fontScale);
         media.addEventListener('input',()=>{wrap.dataset.text=media.textContent; if(doSave) saveLayout(folderSelect.value);});
         media.addEventListener('keydown',e=>{
           if(e.key==='Enter'){
@@ -199,6 +207,7 @@
           const newScale=scale*2;
           wrap.dataset.fontScale=newScale;
           updateScale(newScale);
+          if(doSave) saveLayout(folderSelect.value);
         });
       }
       wrap.appendChild(media);
@@ -258,7 +267,7 @@
       if(!r) return;
       if(!(c>0 && r>0)) return alert('Invalid size');
       const col=Math.floor(cols/2 - c/2), row=Math.floor(rows/2 - r/2);
-      placeMedia('Edit me','text',col,row,c,r,true);
+      placeMedia('Edit me','text',col,row,c,r,true,1);
     });
   </script>
 </body>
