@@ -5,137 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agora Grid Layout</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
     body { margin:0; display:flex; height:100vh; overflow:hidden; font-family:sans-serif; justify-content:center; align-items:center; }
-    #controls { position:absolute; top:10px; left:10px; background:rgba(255,255,255,0.9); padding:8px; border-radius:4px; z-index:10; display:flex; gap:8px; align-items:center; }
-    #message { margin:0; }
+    #header { width:80vmin; height:10vmin; margin-bottom:-3px; display:flex; }
+    #leftSquare { width:10vmin; height:100%; background:#eee; border:3px solid #1449ff; border-bottom:none; box-sizing:border-box; }
+    #rightBox { flex:1; height:100%; background:#eee; border:3px solid #1449ff; border-left:none; border-bottom:none; box-sizing:border-box; }
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
     .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
     .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
-    .text-item {
-      width:100%;
-      height:100%;
-      display:block;
-      font-family:'Outfit', sans-serif;
-      background:#fff;
-      margin:0;
-      padding:0;
-      white-space:pre-wrap;
-      box-sizing:border-box;
-      outline:none;
-    }
   </style>
 </head>
 <body>
-  <div id="controls"><div id="message"></div><select id="folderSelect"></select></div>
+  <div id="header"><div id="leftSquare"></div><div id="rightBox"></div></div>
   <div id="viewport"><div id="gridContainer"><div id="grid"></div></div></div>
   <script>
-  (async function(){
+  (function(){
     const cols=80, rows=45, gap=1;
     const gridContainer=document.getElementById('gridContainer');
     const grid=document.getElementById('grid');
-    const message=document.getElementById('message');
-    const folderSelect=document.getElementById('folderSelect');
     for(let i=0;i<cols*rows;i++){const c=document.createElement('div');c.className='cell';grid.appendChild(c);}
     function getSizes(){
       const cell=grid.querySelector('.cell');
       const rect=cell.getBoundingClientRect();
-      const size=rect.width; // cell size including border
+      const size=rect.width;
       return { size, step:size+gap };
     }
-
-    let folders=[];
-    try{
-      folders = await (await fetch('/static/pf/folders.json')).json();
-      folderSelect.innerHTML = folders.map(f=>`<option value="${f}">${f}</option>`).join('');
-    }catch(e){
-      message.textContent='No folders available';
-      return;
-    }
-
-    let folder=new URLSearchParams(location.search).get('folder')||folders[0];
-    folderSelect.value=folder;
-    let key=`layout_${folder}`;
-    let raw=localStorage.getItem(key);
-    let items=raw?JSON.parse(raw):[];
+    const p=new URLSearchParams(location.search);
+    const folder=p.get('folder');
+    const message=document.createElement('div');
+    message.id='message';
+    message.style.position='absolute';
+    message.style.top='10px';
+    message.style.left='10px';
+    message.style.background='rgba(255,255,255,0.9)';
+    message.style.padding='8px';
+    message.style.borderRadius='4px';
+    message.style.zIndex='10';
+    document.body.appendChild(message);
+    if(!folder){message.textContent='Error: ?folder=name'; return;}
     message.textContent=`Folder: ${folder}`;
-    const viewport=document.getElementById('viewport');
-    let offsetX=0,offsetY=0;
-    function applyTransform(){
-      gridContainer.style.transform=`translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-    }
-
+    const key=`layout_${folder}`;
+    let items=JSON.parse(localStorage.getItem(key)||'[]');
     function render(){
       const {size,step}=getSizes();
       gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
-      items.forEach((item,i)=>{
-        const colsSpan=item.cols, rowsSpan=item.rows;
-        const col=Math.min(Math.max(0,item.col),cols-colsSpan);
-        const row=Math.min(Math.max(0,item.row),rows-rowsSpan);
-        const w=colsSpan*size+(colsSpan-1)*gap;
-        const h=rowsSpan*size+(rowsSpan-1)*gap;
+      items.forEach(it=>{
+        const col=Math.min(Math.max(0,it.col),cols-it.cols);
+        const row=Math.min(Math.max(0,it.row),rows-it.rows);
+        const w=it.cols*size+(it.cols-1)*gap;
+        const h=it.rows*size+(it.rows-1)*gap;
         const wrap=document.createElement('div');
         wrap.className='placed';
-        wrap.style.zIndex=i+1;
         wrap.style.left=`${col*step}px`;
         wrap.style.top=`${row*step}px`;
         wrap.style.width=`${w}px`;
         wrap.style.height=`${h}px`;
-        let media;
-        if(item.type==='text'){
-          media=document.createElement('div');
-          media.className='text-item';
-          media.textContent=item.text||'';
-          const updateScale=scale=>{
-            const {size:sz}=getSizes();
-            media.style.fontSize=`${sz*scale}px`;
-            media.style.lineHeight=`${sz*scale}px`;
-          };
-          wrap.dataset.fontScale=item.fontScale||1;
-          updateScale(parseFloat(wrap.dataset.fontScale));
-          wrap.addEventListener('dblclick',()=>{
-            const scale=parseFloat(wrap.dataset.fontScale)||1;
-            const newScale=scale*2;
-            wrap.dataset.fontScale=newScale;
-            items[i].fontScale=newScale;
-            updateScale(newScale);
-            localStorage.setItem(key,JSON.stringify(items));
-          });
-        }else{
-          media=document.createElement(/\.(mp4|webm)$/i.test(item.src)?'video':'img');
-          if(media.tagName==='VIDEO'){
-            media.controls=false;
-            media.autoplay=true;
-            media.loop=true;
-            media.muted=true;
-            media.playsInline=true;
-          }
-          media.src=item.src;
-        }
+        const media=document.createElement(/\.(mp4|webm)$/i.test(it.src)?'video':'img');
+        if(media.tagName==='VIDEO'){media.autoplay=true;media.loop=true;media.muted=true;media.playsInline=true;}
+        media.src=it.src;
         wrap.appendChild(media);
         gridContainer.appendChild(wrap);
       });
     }
-
-    function loadLayout(name){
-      key=`layout_${name}`;
-      const raw=localStorage.getItem(key);
-      items=raw?JSON.parse(raw):[];
-      message.textContent=raw?`Folder: ${name}`:`No layout for '${name}'`;
-      render();
-    }
-
-    folderSelect.addEventListener('change',()=>{
-      folder=folderSelect.value;
-      history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
-      loadLayout(folder);
-    });
-
     render();
-
+    const viewport=document.getElementById('viewport');
+    let offsetX=0,offsetY=0;
+    function apply(){
+      gridContainer.style.transform=`translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    }
     viewport.addEventListener('mousemove',e=>{
       const rect=viewport.getBoundingClientRect();
       const {size,step}=getSizes();
@@ -146,31 +85,19 @@
       const margin=60;
       const pan=step/4;
       let moved=false;
-      if(e.clientX-rect.left<margin) {offsetX=Math.min(offsetX+pan,maxX);moved=true;}
-      else if(rect.right-e.clientX<margin) {offsetX=Math.max(offsetX-pan,-maxX);moved=true;}
-      if(e.clientY-rect.top<margin) {offsetY=Math.min(offsetY+pan,maxY);moved=true;}
-      else if(rect.bottom-e.clientY<margin) {offsetY=Math.max(offsetY-pan,-maxY);moved=true;}
-      if(moved) applyTransform();
+      if(rect.right-e.clientX<margin){offsetX=Math.min(offsetX+pan,maxX);moved=true;}
+      else if(e.clientX-rect.left<margin){offsetX=Math.max(offsetX-pan,-maxX);moved=true;}
+      if(rect.bottom-e.clientY<margin){offsetY=Math.min(offsetY+pan,maxY);moved=true;}
+      else if(e.clientY-rect.top<margin){offsetY=Math.max(offsetY-pan,-maxY);moved=true;}
+      if(moved) apply();
     });
-
-    applyTransform();
-
-    window.addEventListener('storage', e=>{
+    apply();
+    window.addEventListener('storage',e=>{
       if(e.key===key){
-        items = e.newValue ? JSON.parse(e.newValue) : [];
+        items=e.newValue?JSON.parse(e.newValue):[];
         render();
       }
     });
-
-    let lastLayout = raw;
-    setInterval(()=>{
-      const cur = localStorage.getItem(key);
-      if(cur !== lastLayout){
-        lastLayout = cur;
-        items = cur ? JSON.parse(cur) : [];
-        render();
-      }
-    },1000);
   })();
   </script>
         inn.style.transform='scaleX(1)';
