@@ -15,9 +15,6 @@
     #viewport { position:relative; overflow:hidden; width:80vmin; height:calc(80vmin*9/16); border:3px solid #1449ff; }
     #leftSquare { width:10vmin; height:100%; background:#eee; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
     #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:3px solid #1449ff; border-left:3px solid #1449ff; }
-    #rightBox .interactive-text { width:100%; white-space:nowrap; overflow:visible; font-family:'Roboto Flex', sans-serif; font-size:8vmin; line-height:1em; color:#1449ff; text-align:center; }
-    #rightBox .interactive-text .letter { display:inline-block; overflow:hidden; transition:width 0.2s ease; }
-    #rightBox .interactive-text .letter .char { display:inline-block; transform-origin:left center; transition:transform 0.2s ease, font-variation-settings 0.2s ease; font-variation-settings:'wght' 400; }
     #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#fff; }
     #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
     .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
@@ -40,88 +37,10 @@
 <body>
   <div id="controls"><div id="message"></div><select id="folderSelect"></select></div>
   <div id="layoutWrapper">
-    <div id="header"><div id="leftSquare"></div><div id="rightBox"><div class="interactive-text"></div></div></div>
+    <div id="header"><div id="leftSquare"></div><div id="rightBox"></div></div>
     <div id="viewport"><div id="gridContainer"><div id="grid"></div></div></div>
   </div>
   <script>
-  function setupInteractiveText(text){
-    const root=document.querySelector('#rightBox .interactive-text');
-    if(!root) return;
-    const C=root.cloneNode(false);
-    root.replaceWith(C);
-    C.textContent=text||'';
-
-    const hoverScale=1.8;
-    const neighborScale=1.2;
-    const normalWght=400;
-    const neighborWght=600;
-    const hoverWght=900;
-
-    const txt=C.textContent.trim();
-    C.textContent='';
-    for(const ch of txt){
-      const out=document.createElement('span');
-      out.className='letter';
-      const inn=document.createElement('span');
-      inn.className='char';
-      inn.textContent=ch;
-      out.appendChild(inn);
-      C.appendChild(out);
-    }
-    const letters=Array.from(C.children);
-
-    const measure=()=>{
-      const baseWidths=[]; let sumBase=0;
-      letters.forEach(out=>{
-        const inn=out.firstElementChild;
-        inn.style.transform='scaleX(1)';
-        const w=inn.getBoundingClientRect().width;
-        baseWidths.push(w); sumBase+=w;
-      });
-      const totalW=C.getBoundingClientRect().width;
-      const S=totalW/sumBase;
-      const scaled=baseWidths.map(w=>w*S);
-      letters.forEach((out,i)=>{
-        const inn=out.firstElementChild;
-        out.style.width=scaled[i]+'px';
-        inn.style.width=baseWidths[i]+'px';
-        inn.style.transform=`scaleX(${S})`;
-        inn.style.fontVariationSettings=`'wght' ${normalWght}`;
-      });
-      letters.forEach((out,i)=>{
-        out.onmouseenter=()=>{
-          const wH=scaled[i];
-          const wN=(i>0?scaled[i-1]:0)+(i<scaled.length-1?scaled[i+1]:0);
-          const wO=totalW-wH-wN;
-          const Rh=hoverScale,Rn=neighborScale;
-          const Ro=(totalW-wH*Rh-wN*Rn)/wO;
-          letters.forEach((o,j)=>{
-            const ch=o.firstElementChild; let R,wght;
-            if(j===i){R=Rh;wght=hoverWght;}
-            else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}
-            else{R=Ro;wght=normalWght;}
-            o.style.width=scaled[j]*R+'px';
-            ch.style.transform=`scaleX(${S*R})`;
-            ch.style.fontVariationSettings=`'wght' ${wght}`;
-          });
-        };
-        out.onmouseleave=()=>{
-          letters.forEach((o,j)=>{
-            const ch=o.firstElementChild;
-            o.style.width=scaled[j]+'px';
-            ch.style.transform=`scaleX(${S})`;
-            ch.style.fontVariationSettings=`'wght' ${normalWght}`;
-          });
-        };
-      });
-    };
-
-    const run=()=>requestAnimationFrame(measure);
-    if(document.fonts&&document.fonts.ready) document.fonts.ready.then(run); else run();
-    if(C._measure) window.removeEventListener('resize', C._measure);
-    C._measure=run; window.addEventListener('resize', run);
-  }
-
   (async function(){
     const cols=80, rows=45, gap=1;
     const gridContainer=document.getElementById('gridContainer');
@@ -147,7 +66,6 @@
 
     let folder=new URLSearchParams(location.search).get('folder')||folders[0];
     folderSelect.value=folder;
-    setupInteractiveText(folder);
     let key=`layout_${folder}`;
     let raw=localStorage.getItem(key);
     let items=raw?JSON.parse(raw):[];
@@ -221,7 +139,6 @@
     folderSelect.addEventListener('change',()=>{
       folder=folderSelect.value;
       history.replaceState(null,'',`?folder=${encodeURIComponent(folder)}`);
-      setupInteractiveText(folder);
       loadLayout(folder);
     });
 
