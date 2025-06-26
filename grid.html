@@ -47,10 +47,10 @@
   function setupInteractiveText(text){
     const root=document.querySelector('#rightBox .interactive-text');
     if(!root) return;
-    // reset element to remove prior listeners
     const C=root.cloneNode(false);
     root.replaceWith(C);
     C.textContent=text||'';
+
     const hoverScale=1.8;
     const neighborScale=1.2;
     const normalWght=400;
@@ -71,8 +71,7 @@
     const letters=Array.from(C.children);
 
     const measure=()=>{
-      const baseWidths=[];
-      let sumBase=0;
+      const baseWidths=[]; let sumBase=0;
       letters.forEach(out=>{
         const inn=out.firstElementChild;
         inn.style.transform='scaleX(1)';
@@ -81,28 +80,27 @@
       });
       const totalW=C.getBoundingClientRect().width;
       const S=totalW/sumBase;
-      const slots=baseWidths.map(w=>w*S);
+      const scaled=baseWidths.map(w=>w*S);
       letters.forEach((out,i)=>{
         const inn=out.firstElementChild;
-        out.style.width=slots[i]+"px";
-        inn.style.width=baseWidths[i]+"px";
+        out.style.width=scaled[i]+'px';
+        inn.style.width=baseWidths[i]+'px';
         inn.style.transform=`scaleX(${S})`;
         inn.style.fontVariationSettings=`'wght' ${normalWght}`;
       });
       letters.forEach((out,i)=>{
         out.onmouseenter=()=>{
-          const wH=slots[i];
-          const wN=(i>0?slots[i-1]:0)+(i<slots.length-1?slots[i+1]:0);
+          const wH=scaled[i];
+          const wN=(i>0?scaled[i-1]:0)+(i<scaled.length-1?scaled[i+1]:0);
           const wO=totalW-wH-wN;
           const Rh=hoverScale,Rn=neighborScale;
           const Ro=(totalW-wH*Rh-wN*Rn)/wO;
           letters.forEach((o,j)=>{
-            const ch=o.firstElementChild;
-            let R,wght;
+            const ch=o.firstElementChild; let R,wght;
             if(j===i){R=Rh;wght=hoverWght;}
             else if(j===i-1||j===i+1){R=Rn;wght=neighborWght;}
             else{R=Ro;wght=normalWght;}
-            o.style.width=slots[j]*R+'px';
+            o.style.width=scaled[j]*R+'px';
             ch.style.transform=`scaleX(${S*R})`;
             ch.style.fontVariationSettings=`'wght' ${wght}`;
           });
@@ -110,7 +108,7 @@
         out.onmouseleave=()=>{
           letters.forEach((o,j)=>{
             const ch=o.firstElementChild;
-            o.style.width=slots[j]+"px";
+            o.style.width=scaled[j]+'px';
             ch.style.transform=`scaleX(${S})`;
             ch.style.fontVariationSettings=`'wght' ${normalWght}`;
           });
